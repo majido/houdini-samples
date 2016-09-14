@@ -277,7 +277,7 @@ limitations under the License.
     return new Promise(function(resolve, reject) {
       var req = new XMLHttpRequest();
       // TODO(flackr): Figure out why we keep getting stale response when using 'GET'.
-      req.open('POST', url);
+      req.open('GET', url);
 
       req.onload = function() {
         if (req.status == 200)
