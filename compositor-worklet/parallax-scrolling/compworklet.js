@@ -13,18 +13,16 @@ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 See the License for the specific language governing permissions and
 limitations under the License.
 */
-function ParallaxAnimator() {
-}
+registerAnimator('parallax', class ParallaxAnimator {
+  static get outputProperties() { return ['transform']; }
+  static get rootInputScroll() { return true; }
 
-ParallaxAnimator.prototype.tick = function(timestamp) {
-  var t = this.parallax.transform;
-  t.m42 = -0.1 * this.scroller.scrollTop;
-  this.parallax.transform = t;
-}
+  animate(root, children, timeline) {
+    children.forEach(elem => {
+      var t = elem.styleMap.transform;
+      t.m42 = -0.1 * root.scrollOffsets.top;
+      elem.styleMap.transform = t;
+    });
+  }
 
-ParallaxAnimator.prototype.onmessage = function(e) {
-  this.scroller = e.data[0];
-  this.parallax = e.data[1];
-};
-
-registerCompositorAnimator('parallax', ParallaxAnimator);
+});

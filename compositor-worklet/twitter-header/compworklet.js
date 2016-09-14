@@ -13,39 +13,36 @@ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 See the License for the specific language governing permissions and
 limitations under the License.
 */
-function TwitterHeader() {
-}
+registerAnimator('twitter-header', class TwitterHeader {
+  static get inputProperties() { return ['--part']; }
+  static get outputProperties() { return ['opacity', 'transform']; }
+  static get inputTime() { return true; }
+  static get rootInputScroll() { return true; }
 
-TwitterHeader.prototype.tick = function(timestamp) {
-  if (!this.initialized)
-    return;
-  var scroll = this.scroller.scrollTop/(189-45);
-
-  var t = this.avatar.transform;
-  if (scroll > 1) {
-    scroll = 1;
+  animate(root, children, timeline) {
+    var scroll = root.scrollOffsets.top / (189 - 45);
+    if (scroll > 1) {
+      scroll = 1;
+    }
+    children.forEach(elem => {
+      var part = elem.styleMap.get('--part');
+      if (part == 'avatar') {
+        var t = elem.styleMap.transform;
+        t.m11 = 1 - 0.6*scroll;
+        t.m22 = 1 - 0.6*scroll;
+        t.m41 = -scroll*45*0.6;
+        if(root.scrollOffsets.top > 189 - 45 * 0.6) {
+          t.m42 = root.scrollOffsets.top - (189 - 45 * 0.6) + 45;
+        } else {
+          t.m42 = 45;
+        }
+        elem.styleMap.transform = t;
+      } else if (part == 'bar') {
+        elem.styleMap.opacity = scroll;
+        var t = elem.styleMap.transform;
+        t.m42 = root.scrollOffsets.top;
+        elem.styleMap.transform = t;
+      }
+    });
   }
-  t.m11 = 1 - 0.6*scroll;
-  t.m22 = 1 - 0.6*scroll;
-  t.m41 = -scroll*45*0.6;
-  if(this.scroller.scrollTop > 189-45*0.6) {
-    t.m42 = this.scroller.scrollTop - (189-45*0.6) + 45;
-  } else {
-    t.m42 = 45;
-  }
-  this.avatar.transform = t;
-
-  this.bar.opacity = scroll;
-  var t = this.bar.transform;
-  t.m42 = this.scroller.scrollTop;
-  this.bar.transform = t;
-};
-
-TwitterHeader.prototype.onmessage = function(e) {
-  this.initialized = true;
-  this.scroller = e.data[0];
-  this.avatar = e.data[1];
-  this.bar = e.data[2];
-};
-
-registerCompositorAnimator('twitter-header', TwitterHeader);
+});
