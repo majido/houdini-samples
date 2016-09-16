@@ -86,8 +86,8 @@ limitations under the License.
           continue;
         elementUpdate[animator] = [];
         for (var i = 0; i < roots.length; i++) {
-          var rootProperties = [];
-          if (details.rootInputScroll) {
+          var rootProperties = filterCompositedProperties(details.rootInputProperties, details.rootOutputProperties);
+          if (details.rootInputScroll || details.rootOutputScroll) {
             rootProperties.push('scrollTop');
             rootProperties.push('scrollLeft');
           }
@@ -99,6 +99,10 @@ limitations under the License.
           });
           for (var j = 0; j < roots[i].children.length; j++) {
             var properties = filterCompositedProperties(details.inputProperties, details.outputProperties);
+            if (details.inputScroll || details.outputScroll) {
+              properties.push('scrollTop');
+              properties.push('scrollLeft');
+            }
             elementUpdate[animator][i].children.push({
               'proxy': properties.length ? new CompositorProxy(roots[i].children[j], properties) : null,
               'styleMap': getProperties(roots[i].children[j], details.inputProperties),
@@ -154,7 +158,7 @@ limitations under the License.
 
   var MainThreadAnimationWorklet = function() {
     function importOnMain(src) {
-      console.warn('Main thread polyfill is not complete yet.');
+      console.warn('Using main thread polyfill of AnimationWorklet, animations will not be performance isolated.');
       return new Promise(function(resolve, reject) {
         var script = document.createElement('script');
         script.src = src;
@@ -169,10 +173,107 @@ limitations under the License.
     }
 
     var ctors = {};
+    var animators = {};
     // This is invoked in the worklet to register |name|.
     scope.registerAnimator = function(name, ctor) {
       ctors[name] = ctor;
+      animators[name] = {
+        'inputProperties': ctor.inputProperties || [],
+        'outputProperties': ctor.outputProperties || [],
+        'inputScroll': !!ctor.inputScroll,
+        'outputScroll': !!ctor.outputScroll,
+        'rootInputProperties': ctor.rootInputProperties || [],
+        'rootOutputProperties': ctor.rootOutputProperties || [],
+        'rootInputScroll': !!ctor.rootInputScroll,
+        'rootOutputScroll': !!ctor.rootOutputScroll,
+      };
+      updateRunningAnimators();
     };
+
+    class ElementProxy {
+      constructor(element, inputScroll, outputScroll, inputProperties, outputProperties) {
+        this.styleMap = new ElementStyleMap(element, inputProperties, outputProperties);
+        this.scrollOffsets = new ElementScrollMap(element, inputScroll, outputScroll);
+      }
+    };
+
+    class ElementStyleMap {
+      constructor(element, inputProperties, outputProperties) {
+        // TODO(flackr): Restrict output properties based on constructor param.
+        this.element_ = element;
+        this.style_ = getComputedStyle(element);
+        for (var i = 0; i < inputProperties.length; i++) {
+          // Skip copying "accelerated" properties.
+          var property = inputProperties[i];
+          if (property == 'transform' || property == 'opacity')
+            continue;
+          this[property] = this.style_.getPropertyValue(property).trim();
+        }
+      };
+
+      get(key) { return this[key]; }
+      set(key, val) { this[key] = val; }
+
+      get opacity() { return this.style_.opacity; }
+      set opacity(val) { this.element_.style.opacity = val; }
+      get transform() { return this.style_.transform == 'none' ? new DOMMatrix() : new DOMMatrix(this.style_.transform); };
+      set transform(val) { this.element_.style.transform = val.toString(); };
+    };
+
+    class ElementScrollMap {
+      constructor(element, input, output) {
+        // TODO(flackr): Restrict access to input / output scroll according to constructor params.
+        this.element_ = element;
+      }
+
+      get top() { return this.element_.scrollTop; }
+      set top(val) { this.element_.scrollTop = val; }
+      get left() { return this.element_.scrollLeft; }
+      set left(val) { this.element_.scrollLeft = val; }
+    };
+
+    var runningAnimators = {};
+    onElementsUpdated = updateRunningAnimators;
+    function updateRunningAnimators() {
+      runningAnimators = {};
+      for (var animator in animators) {
+        var details = animators[animator];
+        var roots = animatedElements[animator];
+        if (!roots)
+          continue;
+        runningAnimators[animator] = [];
+        for (var i = 0; i < roots.length; i++) {
+          var rootProperties = [];
+          if (details.rootInputScroll) {
+            rootProperties.push('scrollTop');
+            rootProperties.push('scrollLeft');
+          }
+          runningAnimators[animator].push({
+            'animator': new ctors[animator](),
+            'root': new ElementProxy(roots[i].root, details.rootInputScroll, details.rootOutputScroll, details.rootInputProperties, details.rootOutputProperties),
+            'children': [],
+          });
+          for (var j = 0; j < roots[i].children.length; j++) {
+            runningAnimators[animator][i].children.push(new ElementProxy(roots[i].children[j],
+                details.inputScroll, details.outputScroll, details.inputProperties, details.outputProperties));
+          }
+        }
+      }
+    }
+
+    var timeline = {'currentTime': 0};
+    function raf(ts) {
+      timeline.currentTime = ts;
+      for (var animator in runningAnimators) {
+        for (var i = 0; i < runningAnimators[animator].length; i++) {
+          var desc = runningAnimators[animator][i];
+          desc.animator.animate(desc.root, desc.children, timeline);
+        }
+      }
+
+      requestAnimationFrame(raf);
+    }
+    requestAnimationFrame(raf);
 
     var animators = {};
 

@@ -29,15 +29,9 @@ limitations under the License.
     get left() { return this.proxy_.scrollLeft; }
   };
 
-  class RootElementWrapper {
+  class ProxyElementWrapper {
     constructor(desc) {
       this.scrollOffsets = new ScrollOffsetsWrapper(desc.proxy);
-      this.styleMap = desc.styleMap;
-    }
-  };
-
-  class ChildElementWrapper {
-    constructor(desc) {
       this.styleMap = new StyleMapWrapper(desc);
     }
   };
@@ -69,12 +63,14 @@ limitations under the License.
       'details': {
         'inputProperties': ctor.inputProperties || [],
         'outputProperties': ctor.outputProperties || [],
+        'inputScroll': !!ctor.inputScroll,
+        'outputScroll': !!ctor.outputScroll,
+        'rootInputProperties': ctor.rootInputProperties || [],
+        'rootOutputProperties': ctor.rootOutputProperties || [],
         'rootInputScroll': !!ctor.rootInputScroll,
+        'rootOutputScroll': !!ctor.rootOutputScroll,
     }});
-    // For now, we'll immediately construct a registered animator. In the future
-    // we will probably want to construct an animator per root.
-    animators[name] = new ctor();
-  }
+  };
 
   scope.onmessage = function(event) {
     var data = event.data;
@@ -98,10 +94,10 @@ limitations under the License.
         for (var i = 0; i < data.elements[animator].length; i++) {
           var animatorDesc = animators[animator][i] = {'animator': new animatorCtors[animator]()}
           var elemDesc = data.elements[animator][i];
-          animatorDesc.root = new RootElementWrapper(elemDesc.root);
+          animatorDesc.root = new ProxyElementWrapper(elemDesc.root);
           animatorDesc.children = [];
           for (var j = 0; j < elemDesc.children.length; j++) {
-            animatorDesc.children.push(new ChildElementWrapper(elemDesc.children[j]));
+            animatorDesc.children.push(new ProxyElementWrapper(elemDesc.children[j]));
           }
         }
       }
