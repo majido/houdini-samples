@@ -39,7 +39,7 @@ limitations under the License.
       this.styleMap = new StyleMapWrapper(desc);
     }
 
-    get ready() {
+    get ready_() {
       return !this.proxy_ || this.proxy_.initialized;
     }
 
@@ -119,16 +119,11 @@ limitations under the License.
     for (var animator in animators) {
       for (var i = 0; i < animators[animator].length; i++) {
         var desc = animators[animator][i];
-        if (!desc.root.ready)
-          continue;
-        var childrenInitialized = true;
-        for (var j = 0; j < desc.children.length; j++) {
-          if (!desc.children[j].ready) {
-            childrenInitialized = false;
-            break;
-          }
-        }
-        if (!childrenInitialized)
+        var ready = [desc.root].concat(desc.children)
+          .map(function(e) { return e.ready_; })
+          .reduce(function(prev, curr) { return prev && curr; }, true);
+
+        if (!ready)
           continue;
         try {
           desc.animator.animate(desc.root, desc.children, timeline);
