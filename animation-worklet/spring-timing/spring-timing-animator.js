@@ -14,7 +14,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 registerAnimator('spring', class SpringAnimator {
-  static get inputProperties() { return ['--spring-k', '--ratio', '--distance']; }
+  static get inputProperties() { return ['--spring-k', '--ratio', '--target']; }
   static get outputProperties() { return ['transform']; }
   static get inputTime() { return true; }
 
@@ -23,43 +23,41 @@ registerAnimator('spring', class SpringAnimator {
       if (!e.springTiming_)  {
         // initialize the simulation.
         const k = parseFloat(e.styleMap.get('--spring-k'));
-        const distance = parseFloat(e.styleMap.get('--distance'));
-        const ratio = Math.min(parseFloat(e.styleMap.get('--ratio')), 1);
+        const ratio = Math.min(parseFloat(e.styleMap.get('--ratio')), 1 - 1e-5);
 
         e.startTime_ = timeline.currentTime;
-        e.springTiming_ = this.springTiming(k, ratio , distance);
+        e.springTiming_ = this.spring(k, ratio);
       }
 
-      // compute the new value based on spring simulation.
-      // TODO(majidvp): stop ticking the animation once a threshold is reached.
-      var dt_seconds = (timeline.currentTime - e.startTime_) / 1000;
-      var dv = e.springTiming_(dt_seconds);
+      const target = parseFloat(e.styleMap.get('--target'));
+      // TODO(majidvp): stop computing a new value once we are withing a certainer threshold of the target.
+      const dt_seconds = (timeline.currentTime - e.startTime_) / 1000;
+      const dv = target * e.springTiming_(dt_seconds);
 
-
-      // update the transform.
       var t = e.styleMap.transform;
       t.m41 = dv;
       e.styleMap.transform = t;
     });
-
   }
 
-  // Based on flutter spring simulation for under-damped springs.
-  // assumes mass = 1
-  // assumes velocity = 100;
+  // Based on flutter spring simulation for an under-damped spring:
   // https://github.com/flutter/flutter/blob/cbe650a7e67931c0208a796fc17550e5c436d340/packages/flutter/lib/src/physics/spring_simulation.dart
-  springTiming(springConstant, ratio, distance) {
-    console.log([springConstant, ratio, distance].join(','));
+  spring(springConstant, ratio) {
+    // Normalize mass and distance to 1 and assume a reasonable init velocity.
+    const velocity = 0.2;
+    const mass = 1;
+    const distance = 1;
+
     const damping = ratio * 2.0 * Math.sqrt(springConstant);
-    const w = Math.sqrt(4.0 * springConstant - damping * damping) / 2.0;
+    const w = Math.sqrt(4.0 * springConstant - damping * damping) / (2.0 * mass);
     const r = -(damping / 2.0);
     const c1 = distance;
-    const c2 = (100 - r * distance) / w;
+    const c2 = (velocity - r * distance) / w;
 
-
-    return function(time) {
-      const result =  Math.pow(Math.E, r * time) *
-           (c1 * Math.cos(w * time) + c2 * Math.sin(w * time));
+    // return a valaue in [0..distance]
+    return function springTiming(time) {
+      const result = Math.pow(Math.E, r * time) *
+                    (c1 * Math.cos(w * time) + c2 * Math.sin(w * time));
       return distance - result;
     }
   }
