@@ -65,10 +65,7 @@ limitations under the License.
   document.getElementById('master_scroller').appendChild(template.content.cloneNode(true));
   document.getElementById('preview_scroller').appendChild(template.content.cloneNode(true));
 
-  setTimeout(function() {
-    window.polyfillAnimationWorklet.import('sync-scroller-animator.js');
-
-  }, 100);
+  window.polyfillAnimationWorklet.import('sync-scroller-animator.js');
 </script>
 
 </html>
