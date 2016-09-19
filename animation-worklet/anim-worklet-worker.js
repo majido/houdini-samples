@@ -26,14 +26,23 @@ limitations under the License.
     }
 
     get top() { return this.proxy_.scrollTop; }
+    set top(s) { this.proxy_.scrollTop = s;}
     get left() { return this.proxy_.scrollLeft; }
+    set left(s) { this.proxy_.scrollLeft = s;}
+
   };
 
   class ProxyElementWrapper {
     constructor(desc) {
+      this.proxy_ = desc.proxy;
       this.scrollOffsets = new ScrollOffsetsWrapper(desc.proxy);
       this.styleMap = new StyleMapWrapper(desc);
     }
+
+    get ready() {
+      return !this.proxy_ || this.proxy_.initialized;
+    }
+
   };
 
   class StyleMapWrapper {
@@ -110,11 +119,11 @@ limitations under the License.
     for (var animator in animators) {
       for (var i = 0; i < animators[animator].length; i++) {
         var desc = animators[animator][i];
-        if (desc.root.proxy && !desc.root.proxy.initialized)
+        if (!desc.root.ready)
           continue;
         var childrenInitialized = true;
         for (var j = 0; j < desc.children.length; j++) {
-          if (desc.children[j].proxy && !desc.children[j].proxy.initialized) {
+          if (!desc.children[j].ready) {
             childrenInitialized = false;
             break;
           }
