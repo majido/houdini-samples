@@ -1,5 +1,4 @@
-`twitter-header` is a web implementation similar to the profile page to the
-Android native app. Due to the limitations of the frankenstein version used to
-build this sample, scrolling is done inside a div with a fixed size.
-
-Video: https://www.youtube.com/watch?v=EUlIxr8mk7s
+`sync-scroller` is a sample that showcases the use of animation worklet to
+update scroll offset. The example implements a preview scroller similar to
+how SublimeText preview work. The preview scroller displays the same
+content but at a smaller scale and scrolls in sync with the main scroller.
