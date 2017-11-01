@@ -15,6 +15,6 @@ limitations under the License.
 */
 registerAnimator('parallax', class ParallaxAnimator {
   animate(currentTime, effect) {
-    effect.localTime = 200 * currentTime;
+    effect.localTime = 0.2 * currentTime;
   }
 });

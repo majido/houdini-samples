@@ -16,6 +16,11 @@ limitations under the License.
 (function(scope) {
   "use strict";
 
+  if (window.animationWorklet && window.animationWorklet.addModule) {
+    console.log('-------> Native animation worklet is available. Skip loading the polyfill');
+    return;
+  }
+
   // Ensure the WebAnimations polyfill is loaded.
   if (!scope.webAnimations1) {
     document.write('<script src="https://rawgit.com/web-animations/web-animations-js/master/web-animations-next.dev.js"></script>');

@@ -55,13 +55,27 @@ document.addEventListener('DOMContentLoaded', function() {
       rafScheduled = true;
     };
   } else {
-    console.log('Using compositor worklet rAF');
+    var worklet;
 
-    window.animationWorkletPolyfill.addModule('parallax-animator.js');
-    var scrollRange = scroller.scrollHeight - scroller.clientHeight;
-    window.parallaxAnimator = new WorkletAnimation('parallax',
-        new KeyframeEffect(parallax, [{'transform': 'translateY(0)'}, {'transform': 'translateY(' + -scrollRange + 'px)'}], scrollRange),
-        new ScrollTimeline({scrollSource: scroller, orientation: 'vertical'}));
-    window.parallaxAnimator.play();
+    if (window.animationWorklet && window.animationWorklet.addModule) {
+      console.log('Using native animation worklet');
+      worklet = window.animationWorklet;
+    } else {
+      console.log('Using polyfill worklet that runs on main thread');
+      worklet = window.animationWorkletPolyfill;
+    }
+
+    worklet.addModule('parallax-animator.js').then( _ => {
+      console.log('parallax animator is loaded. Starting animation.');
+
+      var scrollRange = scroller.scrollHeight - scroller.clientHeight;
+      var scrollTimeline = new ScrollTimeline({scrollSource: scroller, orientation: 'block', timeRange: 1000})
+
+      var effect = new KeyframeEffect(parallax,
+                                      [{'transform': 'translateY(0)'}, {'transform': 'translateY(' + -scrollRange + 'px)'}],
+                                      {duration: 1000, iterations: Infinity});
+      window.parallaxAnimator = new WorkletAnimation('parallax', [effect], scrollTimeline, {});
+      window.parallaxAnimator.play();
+    });
   }
 });
