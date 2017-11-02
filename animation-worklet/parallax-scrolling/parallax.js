@@ -65,17 +65,22 @@ document.addEventListener('DOMContentLoaded', function() {
       worklet = window.animationWorkletPolyfill;
     }
 
-    worklet.addModule('parallax-animator.js').then( _ => {
-      console.log('parallax animator is loaded. Starting animation.');
+    // Wait one frame to ensure scroller is available and composited!
+    // TODO: This is just a temp hack and we should remove it once we can
+    // handle non-composited scrollers.
+    window.requestAnimationFrame( _ => {
+      worklet.addModule('parallax-animator.js').then( _ => {
+        console.log('parallax animator is loaded. Starting animation.');
 
-      var scrollRange = scroller.scrollHeight - scroller.clientHeight;
-      var scrollTimeline = new ScrollTimeline({scrollSource: scroller, orientation: 'block', timeRange: 1000})
+        var scrollRange = scroller.scrollHeight - scroller.clientHeight;
+        var scrollTimeline = new ScrollTimeline({scrollSource: scroller, orientation: 'block', timeRange: 1000})
 
-      var effect = new KeyframeEffect(parallax,
-                                      [{'transform': 'translateY(0)'}, {'transform': 'translateY(' + -scrollRange + 'px)'}],
-                                      {duration: 1000, iterations: Infinity});
-      window.parallaxAnimator = new WorkletAnimation('parallax', [effect], scrollTimeline, {});
-      window.parallaxAnimator.play();
+        var effect = new KeyframeEffect(parallax,
+                                        [{'transform': 'translateY(0)'}, {'transform': 'translateY(' + -scrollRange + 'px)'}],
+                                        {duration: 1000, iterations: Infinity});
+        window.parallaxAnimator = new WorkletAnimation('parallax', [effect], scrollTimeline, {});
+        window.parallaxAnimator.play();
+      });
     });
   }
 });

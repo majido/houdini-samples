@@ -15,6 +15,10 @@ limitations under the License.
 */
 registerAnimator('parallax', class ParallaxAnimator {
   animate(currentTime, effect) {
-    effect.localTime = 0.2 * currentTime;
+    let parallaxRate = 0.4;
+    // TODO(majidvp): At the moment currentTime is in milliseconds and localTime
+    // is in second :(. So we convert them here but this is fixed once this CL
+    // lands: https://chromium-review.googlesource.com/c/chromium/src/+/734231
+    effect.localTime = parallaxRate *  0.001 * currentTime;
   }
 });
