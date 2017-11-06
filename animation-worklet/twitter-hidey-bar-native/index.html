@@ -66,11 +66,12 @@ limitations under the License.
             var scrollRange = (scroller.scrollHeight - scroller.clientHeight);
             var scrollTimeline = new ScrollTimeline({scrollSource: scroller, orientation: 'block', timeRange: scrollRange} );
             window.twitterAnimation = new WorkletAnimation('twitter-header', [
-                new KeyframeEffect(bar, [{'transform': 'translateY(0)'}, {'transform': 'translateY(' + scrollRange + 'px)'}],
-                                   {duration: scrollRange, iterations: Infinity}),
+                new KeyframeEffect(
+                   bar,
+                   [{'transform': 'translateY(0)'}, {'transform': 'translateY(' + scrollRange + 'px)'}],
+                   {duration: scrollRange, iterations: Infinity}),
               ], scrollTimeline, {});
             window.twitterAnimation.play();
-            console.log(window.twitterAnimation)
           });
         });
       });
