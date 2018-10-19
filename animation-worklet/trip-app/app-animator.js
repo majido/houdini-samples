@@ -14,8 +14,8 @@ registerAnimator('image_reveal', class {
       var t;
       if (this.inverse_) {
         let currentScale = 0.5 + (0.5) * progress;
-        let inverseScale = 1 / currentScale; 
-        t = inverseScale - 1;            
+        let inverseScale = 1 / currentScale;
+        t = inverseScale - 1;
       } else {
         t = progress * 100;
       }
@@ -53,11 +53,6 @@ registerAnimator('icon_effect', class {
     }
 
     if (isNear(progress, 0) || progress < 0) {
-      // TODO: Remove this. We have a bug where unplayed animation gets
-      // localTime=0. This is fixed in https://crrev.com/600846 but here
-      // is a workaround for non-canary chrome.
-      effect.localTime = undefined;
-
       // Back to 0, commit the new state
       this.commitedFavoriteState_ = this.favorited_;
     } else if (isNear(progress, 1) || progress > 1 ) {
