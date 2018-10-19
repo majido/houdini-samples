@@ -187,8 +187,11 @@
       document.body.innerHTML = 'Missing <tt>CSS.animationWorklet</tt>. <br/> To enable demo please enable Chrome flag chrome://flags/#enable-experimental-web-platform-features and load on HTTPS'
       return;
     }
+
     console.log('Loading animation worklet...');
+    console.time('worklet loaded')
     await CSS.animationWorklet.addModule('app-animator.js');
+    console.timeEnd('worklet loaded')
     gotoPage();
   })();
 </script>

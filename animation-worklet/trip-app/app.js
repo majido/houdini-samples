@@ -14,11 +14,11 @@ function loadInfoPageAnimations() {
         timeRange: scrollRange
     });
 
-    const offsets = Array.prototype.map.call(
+    const tabOffsets = Array.prototype.map.call(
         tabs.querySelectorAll('li'), tab => { return tab.offsetLeft - 40 /* margin */})
-    console.log(offsets)
-    createImageAnimations(scrollTimeline, offsets, tabs.clientWidth);
-    createIndicatorAnimation(scrollTimeline);
+    createImageAnimations(scrollTimeline, tabOffsets, tabs.clientWidth);
+    createIndicatorAnimation(scrollTimeline, tabOffsets);
+    makeIndicatorClickable(tabOffsets);
 }
 
 // Create a swipe-to-action effect for each row. The effects involves 3
@@ -98,7 +98,7 @@ function createRowAnimations(row_container) {
 //    different than scroll width this appears as a parallax.
 // 2. reveal: achieved by scaling and counter-scaling so the image does not move
 //    but its clip is animated.
-function createImageAnimations(scrollTimeline, offsets, width) {
+function createImageAnimations(scrollTimeline, tabOffsets, width) {
     const image_container = document.getElementById('images');
 
     // FIXME: I am a layout noob! I would have expected that image container
@@ -123,7 +123,7 @@ function createImageAnimations(scrollTimeline, offsets, width) {
             { transform: ['scale(0.5)', 'scale(1)'] },
             { duration: 100, iterations: 1, fill: "both", easing: 'linear'});
         const options = {
-            start: offsets[i],
+            start: tabOffsets[i],
             width: width,
             inverse: false,
         };
@@ -134,7 +134,7 @@ function createImageAnimations(scrollTimeline, offsets, width) {
             { duration: 1, iterations: 1, fill: "both", easing: 'linear'});
 
         const inverse_options = {
-            start: offsets[i],
+            start: tabOffsets[i],
             width: width,
             inverse: true,
         };
@@ -164,7 +164,7 @@ function createImageAnimations(scrollTimeline, offsets, width) {
 // Indicate animation.
 // Simply translate the indicator from first chip to last chip as
 // user scrolls.
-function createIndicatorAnimation(scrollTimeline) {
+function createIndicatorAnimation(scrollTimeline, tabOffsets) {
     const chip_container = document.querySelector('#info #chips');
     const chips = chip_container.querySelectorAll('li');
     const indicator = document.querySelector('#indicator');
@@ -173,4 +173,17 @@ function createIndicatorAnimation(scrollTimeline) {
         { transform: ['translateX(0px)', 'translateX(' + width + 'px)'] },
         { duration: scrollTimeline.timeRange, iterations: 1, fill: "both" });
     new WorkletAnimation('passthrough', indicator_effect, scrollTimeline).play();
+
+}
+
+function makeIndicatorClickable(tabOffsets) {
+    const chips = document.querySelectorAll('#info #chips li');
+    for (let i = 0; i < chips.length; i++) {
+        chips[i].addEventListener('click', _ => {
+            document.getElementById('tabs').scrollTo({
+                left: tabOffsets[i],
+                behavior: 'smooth'
+            });
+        })
+    }
 }
