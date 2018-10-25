@@ -45,7 +45,7 @@ function createRowAnimations(row_container) {
 
     // Set threshold at 40%.
     const threshold = entry.clientWidth * 0.4;
-    const options = {
+    const general_options = {
         start: entry.offsetLeft,
         width: threshold,
     };
@@ -59,7 +59,7 @@ function createRowAnimations(row_container) {
         { duration: 50, delay: 50, iterations: 1, fill: 'both', easing: 'linear' });
 
     const scale_options = {
-        ...options,
+        ...general_options,
         play_when_favorited: false, // ensure effect is played when swiping right
     };
 
@@ -72,7 +72,7 @@ function createRowAnimations(row_container) {
         { duration: 70, delay: 30, iterations: 1, fill: 'both', easing: 'linear' });
 
     const background_scale_options = {
-        ...options,
+        ...general_options,
         play_when_favorited: false,
     };
 
@@ -84,13 +84,29 @@ function createRowAnimations(row_container) {
         { duration: 100, iterations: 1, easing: 'linear' });
 
     const transform_options = {
-        ...options,
+        ...general_options,
         play_when_favorited: true,
     };
 
-    new WorkletAnimation('icon_effect', scale_effect, scrollTimeline, scale_options).play();
-    new WorkletAnimation('icon_effect', background_scale_effect, scrollTimeline, background_scale_options).play();
-    new WorkletAnimation('icon_effect', transform_effect, scrollTimeline, transform_options).play();
+    const background_color_effect = new KeyframeEffect(
+        row_container.querySelector('.bg'),
+        [
+          { background: 'yellow' },
+          { background: 'orange' }
+        ],
+        { duration: 70, delay: 30, iterations: 1, fill: 'both', easing: 'linear' });
+
+    // TODO: Make it user interactive.
+    const ANIMATE_ALL_PROPERTIES_ENABLED = false;
+
+    if (ANIMATE_ALL_PROPERTIES_ENABLED) {
+      new WorkletAnimation('icon_effect_main', [ scale_effect, background_scale_effect, background_color_effect, transform_effect],
+          scrollTimeline, { general_options, scale_options, background_scale_options, transform_options }).play();
+    } else {
+      new WorkletAnimation('icon_effect_compositor', scale_effect, scrollTimeline, scale_options).play();
+      new WorkletAnimation('icon_effect_compositor', background_scale_effect, scrollTimeline, background_scale_options).play();
+      new WorkletAnimation('icon_effect_compositor', transform_effect, scrollTimeline, transform_options).play();
+    }
 }
 
 // Images have two effects
