@@ -22,7 +22,8 @@ registerAnimator(
         last: {
           message: "",
           currentTime: 0,
-          position: null
+          position: null,
+          movement: null
         }
       };
     }
@@ -47,6 +48,7 @@ registerAnimator(
       let event = null,
         position = null,
         movement = { deltaX: 0, deltaY: 0 };
+
       if (message.length != 0) {
         event = JSON.parse(message);
         position = { x: event.screenX, y: event.screenY };
@@ -56,10 +58,9 @@ registerAnimator(
             deltaX: position.x - this.state_.last.position.x,
             deltaY: position.y - this.state_.last.position.y
           };
-
+          this.state_.last.movement = movement;
           console.log("movement ", movement);
         }
-
         this.state_.last.position = position;
       }
 
@@ -68,24 +69,26 @@ registerAnimator(
       //console.log(`@worklet: received <==${message}`, phase, movement);
 
       // Animate based on the phase and pointer movement
-      let new_time;
-      if (phase == "tracking") {
-        // const deltaX = event.screenX - this.state_.pointerOrigin.screenX;
-        new_time = this.state_.current.localTime + movement.deltaX;
-        //console.log(deltaX, effect.localTime);
-      } else if (phase == "finishing") {
-        // TODO: make this time based animated
-        new_time = this.state_.current.localTime;
-        // Move half the distance toward target.
-        // But will Achillies ever reach its target...
-        new_time += (this.state_.target.localTime - new_time) / 10;
-        // ... maybe  :D
-      } else if (phase == "idle") {
-        new_time = this.state_.current.localTime;
+      let time;
+      switch (phase) {
+        case "tracking":
+          // const deltaX = event.screenX - this.state_.pointerOrigin.screenX;
+          time = this.state_.current.localTime + movement.deltaX;
+          break;
+        case "finishing":
+          // TODO: make this time based animated
+          // time = this.state_.current.localTime;
+          // // Move half the distance toward target.
+          // // But will Achillies ever reach its target...
+          // time += (this.state_.target.localTime - time) / 10;
+          time = this.moveTowardFinalTargetWithVelocity();
+          break;
+        case "idle":
+          time = this.state_.current.localTime;
       }
 
-      this.state_.current.localTime = new_time;
-      effect.localTime = new_time;
+      this.state_.current.localTime = time;
+      effect.localTime = time;
     }
 
     calculatePhase(event, localTime) {
@@ -94,11 +97,6 @@ registerAnimator(
           case "pointerdown":
             if (this.state_.phase == "idle") {
               console.log("---- 👋 START ----");
-              // TODO : remove this
-              // this.state_.pointerOrigin = {
-              //   screenX: event.screenX,
-              //   screenY: event.screenY
-              // };
             }
             this.state_.phase = "tracking";
             break;
@@ -110,7 +108,6 @@ registerAnimator(
             }
 
             this.state_.phase = "finishing";
-            //this.state_.pointerOrigin = { x: 0, y: 0 };
             this.state_.last.position = null;
             this.state_.target.localTime = this.calculateFinalTarget(localTime);
             console.log(
@@ -152,6 +149,24 @@ registerAnimator(
         default:
           throw "Invalid releaseBehavior";
       }
+    }
+
+    moveTowardFinalTargetWithVelocity() {
+      // Curve to update  position get closer to the target
+      // initially weigh more heavily on "movement" and over time
+      // switch the distance gets smaller
+
+      const movement = this.state_.last.movement;
+      if (movement) {
+        movement.deltaX = Math.floor(movement.deltaX * 0.9);
+      }
+      const inertialComponent = movement ? movement.deltaX : 0;
+
+      const current = this.state_.current.localTime;
+      const target = this.state_.target.localTime;
+      const distanceComponent = (target - current) / 20;
+
+      return current + (distanceComponent + inertialComponent);
     }
 
     state() {
