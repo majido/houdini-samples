@@ -22,13 +22,15 @@ registerAnimator(
       this.state_.lastMessage = message;
       const event = JSON.parse(message);
 
-      // animate based on the effect phase and movement delta
-      const { phase, movement} = this.calculatePhase(event, effect.localTime);
+      // Update the phase based
+      const phase = this.calculatePhase(event, effect.localTime);
       //console.log(`@worklet: received <==${message}`, phase, movement);
 
+      // Animate based on the phase and pointer movement
       if (phase == "tracking") {
-        effect.localTime = this.state_.localTimeOrigin + movement.deltaX;
-        console.log(movement.deltaX, effect.localTime);
+        const deltaX = event.screenX - this.state_.pointerOrigin.screenX;
+        effect.localTime = this.state_.localTimeOrigin + deltaX;
+        //console.log(deltaX, effect.localTime);
       } else {
         // TODO: make this time based animated
         effect.localTime = this.state_.localTimeOrigin;
@@ -36,39 +38,44 @@ registerAnimator(
     }
 
     calculatePhase(event, localTime) {
-      const position = { x: event.screenX, y: event.screenY };
-
       switch (event.type) {
         case "pointerdown":
           if (this.state_.phase == "idle") {
             console.log("---- 👋 START ----");
 
-            this.state_.pointerOrigin = position;
+            this.state_.pointerOrigin = { screenX: event.screenX, screenY: event.screenY };
           }
           this.state_.phase = "tracking";
           break;
         case "pointerup":
         case "pointerleave":
         case "pointercancel":
-          if (this.state_.phase == "tracking") console.log("==== 👋 🛑 =====");
+          if (this.state_.phase == "tracking") {
+            console.log("==== 👋 🛑 =====");
+          }
 
           this.state_.phase = "idle";
           this.state_.pointerOrigin = { x: 0, y: 0 };
-
-          if (this.releaseBehavior == 'stay')
-            this.state_.localTimeOrigin = localTime;
-          else
-            this.state_.localTimeOrigin = 0;
+          this.state_.localTimeOrigin = this.calculateFinalTarget(localTime);
+          console.log(`${this.releaseBehavior} @ ${this.state_.localTimeOrigin}`);
 
           break;
       }
 
-      const movement = {
-        deltaX: position.x - this.state_.pointerOrigin.x,
-        deltaY: position.y - this.state_.pointerOrigin.y
-      };
+      return this.state_.phase;
+    }
 
-      return { phase: this.state_.phase, movement: movement };
+    calculateFinalTarget(localTime) {
+      const start = 0;
+      // TODO: This really should be effect.getLocalTiming().duration
+      const end = 200;
+      const middle = (end - start)/2;
+      switch(this.releaseBehavior) {
+        case 'remain':   return localTime;
+        case 'complete': return (localTime < middle) ? start : end;
+        case 'return':   return start;
+        default: throw 'Invalid releaseBehavior';
+      }
     }
 
     state() {
@@ -76,3 +83,5 @@ registerAnimator(
     }
   }
 );
+
+console.log('Worklet code was processed.');

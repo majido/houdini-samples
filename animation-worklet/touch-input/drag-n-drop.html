@@ -11,27 +11,36 @@
   .target {
     height: 30vw;
     width: 30vw;
-    background-color: green;
     border: solid black 1px;
     touch-action: none;
+    margin: 10% 0;
   }
 
-
+  .target:nth-child(1) {
+    --release-behavior: remain;
+    background-color: var(--light-primary-color);
+  }
+  .target:nth-child(2) {
+    --release-behavior: return;
+    background-color: var(--default-primary-color);
+  }
+  .target:nth-child(3) {
+    --release-behavior: complete;
+    background-color: var(--dark-primary-color);
+  }
 </style>
 
 <body>
   <div class="target"></div>
+  <div class="target"></div>
+  <div class="target"></div>
 </body>
-
+<script type="module"></script>
 <script type="module">
   import { sender } from "./event-delegation.js";
 
-  async function main() {
-    console.log("Loading animation worklet...");
-    await CSS.animationWorklet.addModule("dnd-animator.js");
-
+  function playDnDAnimation(target) {
     const { pipe, send, delegate } = sender();
-    const target = document.querySelector(".target");
     const effect = new KeyframeEffect(
       target,
       {
@@ -40,16 +49,17 @@
       { duration: 1000 }
     );
 
-    // can be 'stay' | 'reset'
-    const releaseBehavior = 'stay';
+    // can be 'remain' | 'return' | 'complete'
+    const releaseBehavior = getComputedStyle(target)
+      .getPropertyValue("--release-behavior")
+      .trim();
 
     const dnd_animation = new WorkletAnimation(
       "dnd",
       effect,
       document.timeline,
-      { pipe, releaseBehavior}
+      { pipe, releaseBehavior }
     );
-    dnd_animation.play();
 
     delegate(target, [
       "pointerdown",
@@ -58,12 +68,22 @@
       "pointerleave"
     ]);
 
+    dnd_animation.play();
+  }
+
+  async function main() {
+    console.log("Loading animation worklet...");
+    await CSS.animationWorklet.addModule("dnd-animator.js");
+
+    document
+      .querySelectorAll(".target")
+      .forEach(target => playDnDAnimation(target));
+
     // let i = 0;
     // setInterval(_ => {
     //   send( {hello: 'world'+ (i++) } )
     // }, 1000);
   }
-
 
   if (CSS.animationWorklet) {
     main();
@@ -74,7 +94,8 @@
         "https:" +
         window.location.href.substring(window.location.protocol.length);
     } else {
-      const msg = "Missing <tt>CSS.animationWorklet</tt>. <br> To enable demo please enable Chrome flag chrome://flags/#enable-experimental-web-platform-features and load on HTTPS";
+      const msg =
+        "Missing <tt>CSS.animationWorklet</tt>. <br> To enable demo please enable Chrome flag chrome://flags/#enable-experimental-web-platform-features and load on HTTPS";
       console.warn(msg);
       document.body.innerHTML = msg;
     }
