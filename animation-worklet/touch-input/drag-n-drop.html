@@ -1,0 +1,73 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta http-equiv="X-UA-Compatible" content="ie=edge">
+  <title>Drag-n-Drop</title>
+  <link rel="stylesheet" href="common.css">
+</head>
+
+<style>
+.target {
+  height: 30vh;
+  width: 30vw;
+  background-color: green;
+}
+
+drag-n-drop {
+  border: solid black 1px;
+}
+</style>
+
+<body>
+
+ <drag-n-drop>
+    <div class='target'>YaY</div>
+ </drag-n-drop>
+
+</body>
+
+<script src="app.js"></script>
+
+<script type="module">
+import {sender} from './event-delegation.js';
+
+// redirect to https since AnimationWorklet is only availably in secure contexts.
+if (location.hostname != 'localhost' && location.protocol != 'https:') {
+  location.href = 'https:' + window.location.href.substring(window.location.protocol.length);
+}
+
+// Load worklet.
+async function main() {
+  if (!CSS.animationWorklet) {
+    console.warn('Missing CSS.animationWorklet. To enable scroll effect please load in HTTPS and enable flag chrome://flags/#enable-experimental-web-platform-features');
+    document.body.innerHTML = 'Missing <tt>CSS.animationWorklet</tt>. <br/> To enable demo please enable Chrome flag chrome://flags/#enable-experimental-web-platform-features and load on HTTPS'
+    return;
+  }
+
+
+  const {pipe, send, delegate} = sender();
+  const target = document.querySelector('.target');
+  const effect = new KeyframeEffect(target, {
+    'transform': ['translateX(0)', 'translateX(100px)']
+  });
+
+  console.log('Loading animation worklet...');
+  await CSS.animationWorklet.addModule('dnd-animator.js');
+  const dnd_animation = new WorkletAnimation('dnd', effect, document.timeline, {pipe});
+  dnd_animation.play();
+
+  delegate(target, ['pointerdown', 'pointermove', 'pointerup']);
+
+  // let i = 0;
+  // setInterval(_ => {
+  //   send( {hello: 'world'+ (i++) } )
+  // }, 1000);
+}
+
+main();
+</script>
+
+</html>
