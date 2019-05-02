@@ -6,10 +6,12 @@ registerAnimator(
     constructor(options, state) {
       // console.log('construct animation worklet');
       this.receive = receiver(options.pipe);
+      this.releaseBehavior = options.releaseBehavior;
 
       this.state_ = state || {
         phase: "idle", // we have three phase: idle, finishing, tracking
-        pointer_base: { x: 0, y: 0 },
+        pointerOrigin: { x: 0, y: 0 },
+        localTimeOrigin: 0, // track localTime when we transition to idle to ensure the effect is persistent
         lastMessage: ""
       };
     }
@@ -21,18 +23,19 @@ registerAnimator(
       const event = JSON.parse(message);
 
       // animate based on the effect phase and movement delta
-      const { phase, movement } = this.calculatePhase(event);
+      const { phase, movement} = this.calculatePhase(event, effect.localTime);
       //console.log(`@worklet: received <==${message}`, phase, movement);
 
       if (phase == "tracking") {
-        effect.localTime = movement.deltaX;
+        effect.localTime = this.state_.localTimeOrigin + movement.deltaX;
         console.log(movement.deltaX, effect.localTime);
       } else {
-        effect.localTime = 0;
+        // TODO: make this time based animated
+        effect.localTime = this.state_.localTimeOrigin;
       }
     }
 
-    calculatePhase(event) {
+    calculatePhase(event, localTime) {
       const position = { x: event.screenX, y: event.screenY };
 
       switch (event.type) {
@@ -40,7 +43,7 @@ registerAnimator(
           if (this.state_.phase == "idle") {
             console.log("---- 👋 START ----");
 
-            this.state_.pointer_base = position;
+            this.state_.pointerOrigin = position;
           }
           this.state_.phase = "tracking";
           break;
@@ -48,14 +51,21 @@ registerAnimator(
         case "pointerleave":
         case "pointercancel":
           if (this.state_.phase == "tracking") console.log("==== 👋 🛑 =====");
-          this.state_.pointer_base = { x: 0, y: 0 };
+
           this.state_.phase = "idle";
+          this.state_.pointerOrigin = { x: 0, y: 0 };
+
+          if (this.releaseBehavior == 'stay')
+            this.state_.localTimeOrigin = localTime;
+          else
+            this.state_.localTimeOrigin = 0;
+
           break;
       }
 
       const movement = {
-        deltaX: position.x - this.state_.pointer_base.x,
-        deltaY: position.y - this.state_.pointer_base.y
+        deltaX: position.x - this.state_.pointerOrigin.x,
+        deltaY: position.y - this.state_.pointerOrigin.y
       };
 
       return { phase: this.state_.phase, movement: movement };

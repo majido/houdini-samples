@@ -40,12 +40,14 @@
       { duration: 1000 }
     );
 
+    // can be 'stay' | 'reset'
+    const releaseBehavior = 'stay';
 
     const dnd_animation = new WorkletAnimation(
       "dnd",
       effect,
       document.timeline,
-      { pipe }
+      { pipe, releaseBehavior}
     );
     dnd_animation.play();
 
