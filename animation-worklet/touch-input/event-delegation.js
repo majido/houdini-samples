@@ -58,6 +58,7 @@ function receiver(pipe) {
   const worklet_view = new Uint16Array(pipe.buffer_);
 
   function receive() {
+    // TODO(majidvp): use atomics!
     const worklet_view = new Uint16Array(pipe.buffer_);
 
     // first uint16 is length

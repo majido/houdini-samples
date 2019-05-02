@@ -18,6 +18,7 @@
 
 drag-n-drop {
   border: solid black 1px;
+  touch-action: none;
 }
 </style>
 
@@ -51,15 +52,15 @@ async function main() {
   const {pipe, send, delegate} = sender();
   const target = document.querySelector('.target');
   const effect = new KeyframeEffect(target, {
-    'transform': ['translateX(0)', 'translateX(100px)']
-  });
+    'transform': ['translateX(0)', 'translateX(1000px)']
+  }, {duration: 1000});
 
   console.log('Loading animation worklet...');
   await CSS.animationWorklet.addModule('dnd-animator.js');
   const dnd_animation = new WorkletAnimation('dnd', effect, document.timeline, {pipe});
   dnd_animation.play();
 
-  delegate(target, ['pointerdown', 'pointermove', 'pointerup']);
+  delegate(target, ['pointerdown', 'pointermove', 'pointerup', 'pointerleave']);
 
   // let i = 0;
   // setInterval(_ => {
