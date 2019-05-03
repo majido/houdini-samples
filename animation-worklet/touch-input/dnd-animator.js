@@ -7,12 +7,12 @@ registerAnimator(
       // console.log('construct animation worklet');
       this.receive = receiver(options.pipe);
       this.releaseBehavior = options.releaseBehavior;
+      this.maxPosition = options.maxPosition;
+      this.targetWidth = options.targetWidth;
 
       this.state_ = state || {
         // we have three phase: idle, finishing, tracking
         phase: "idle",
-        //pointerOrigin: { x: 0, y: 0 },
-        // track localTime when we transition to idle to ensure the effect is persistent
         current: {
           localTime: 0
         },
@@ -23,7 +23,8 @@ registerAnimator(
           message: "",
           currentTime: 0,
           position: null,
-          movement: null
+          movement: null,
+          intertialDelta: 0
         }
       };
     }
@@ -45,42 +46,18 @@ registerAnimator(
       this.state_.last.message = message;
       this.state_.last.currenTime = currentTime;
 
-      let event = null,
-        position = null,
-        movement = { deltaX: 0, deltaY: 0 };
+      const { events, movement } = this.processEvents(message);
 
-      if (message.length != 0) {
-        event = JSON.parse(message);
-        position = { x: event.screenX, y: event.screenY };
-
-        if (this.state_.last.position) {
-          movement = {
-            deltaX: position.x - this.state_.last.position.x,
-            deltaY: position.y - this.state_.last.position.y
-          };
-          this.state_.last.movement = movement;
-          console.log("movement ", movement);
-        }
-        this.state_.last.position = position;
-      }
-
-      // Update the phase based
-      const phase = this.calculatePhase(event, effect.localTime);
-      //console.log(`@worklet: received <==${message}`, phase, movement);
+      // Update the phase based on event
+      const phase = this.calculatePhase(events);
 
       // Animate based on the phase and pointer movement
       let time;
       switch (phase) {
         case "tracking":
-          // const deltaX = event.screenX - this.state_.pointerOrigin.screenX;
           time = this.state_.current.localTime + movement.deltaX;
           break;
         case "finishing":
-          // TODO: make this time based animated
-          // time = this.state_.current.localTime;
-          // // Move half the distance toward target.
-          // // But will Achillies ever reach its target...
-          // time += (this.state_.target.localTime - time) / 10;
           time = this.moveTowardFinalTargetWithVelocity();
           break;
         case "idle":
@@ -91,8 +68,8 @@ registerAnimator(
       effect.localTime = time;
     }
 
-    calculatePhase(event, localTime) {
-      if (event) {
+    calculatePhase(events) {
+      for (let event of events) {
         switch (event.type) {
           case "pointerdown":
             if (this.state_.phase == "idle") {
@@ -104,28 +81,28 @@ registerAnimator(
           case "pointerleave":
           case "pointercancel":
             if (this.state_.phase == "tracking") {
-              console.log("==== 👋 🛑 =====");
+              const movement = this.state_.last.movement;
+              this.state_.last.intertialDelta = movement ? movement.deltaX : 0;
+              console.log("==== 👋 🛑 ====");
             }
 
             this.state_.phase = "finishing";
             this.state_.last.position = null;
-            this.state_.target.localTime = this.calculateFinalTarget(localTime);
-            console.log(
-              `${this.releaseBehavior} to ${
-                this.state_.target.localTime
-              }  from ${this.state_.current.localTime}`
+            this.state_.target.localTime = this.calculateFinalTarget(
+              this.state_.current.localTime
             );
 
+            console.log(this.debugString());
             break;
         }
       }
 
       if (this.state_.phase == "finishing") {
-        console.log("finishing");
         // switch to idle once we reach our target
         if (
           isNear(this.state_.current.localTime, this.state_.target.localTime)
         ) {
+          console.log("==== 🐌 FINISHED 🐌 ====");
           this.state_.current.localTime = this.state_.target.localTime;
           this.state_.phase = "idle";
         }
@@ -134,10 +111,37 @@ registerAnimator(
       return this.state_.phase;
     }
 
+    // Parse events to compute movement
+    processEvents(message) {
+      let events = [],
+        position = null,
+        movement = { deltaX: 0, deltaY: 0 };
+
+      if (message.length == 0) return { events, movement };
+
+      events = JSON.parse(message);
+      // Consider only position of the most event
+      const recent_event = events[events.length - 1];
+      // console.log(recent_event);
+      position = { x: recent_event.screenX, y: recent_event.screenY };
+
+      if (this.state_.last.position) {
+        movement = {
+          deltaX: position.x - this.state_.last.position.x,
+          deltaY: position.y - this.state_.last.position.y
+        };
+        this.state_.last.movement = movement;
+        //console.log("movement ", movement);
+      }
+      this.state_.last.position = position;
+
+      return { events, movement };
+    }
+
     calculateFinalTarget(localTime) {
       const start = 0;
       // TODO: This really should be effect.getLocalTiming().duration
-      const end = 300;
+      const end = this.maxPosition - this.targetWidth;
       const middle = (end - start) / 2;
       switch (this.releaseBehavior) {
         case "remain":
@@ -156,17 +160,20 @@ registerAnimator(
       // initially weigh more heavily on "movement" and over time
       // switch the distance gets smaller
 
-      const movement = this.state_.last.movement;
-      if (movement) {
-        movement.deltaX = Math.floor(movement.deltaX * 0.9);
-      }
-      const inertialComponent = movement ? movement.deltaX : 0;
+      this.state_.last.intertialDelta *= 0.9;
+      const inertialComponent = this.state_.last.intertialDelta;
 
       const current = this.state_.current.localTime;
       const target = this.state_.target.localTime;
-      const distanceComponent = (target - current) / 20;
+      const distanceComponent = (target - current) / 10;
 
       return current + (distanceComponent + inertialComponent);
+    }
+
+    debugString() {
+      return `currently at ${this.state_.current.localTime} - ${
+        this.releaseBehavior
+      } to ${this.state_.target.localTime}`;
     }
 
     state() {

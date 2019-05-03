@@ -9,8 +9,8 @@
 
 <style>
   .target {
-    height: 30vw;
-    width: 30vw;
+    height: 20vw;
+    width: 20vw;
     border: solid black 1px;
     touch-action: none;
     margin: 10% 0;
@@ -31,22 +31,26 @@
 </style>
 
 <body>
-  <div class="target"></div>
-  <div class="target"></div>
-  <div class="target"></div>
+  <div class="target">Remain</div>
+  <div class="target">Return</div>
+  <div class="target">Complete</div>
 </body>
 <script type="module"></script>
 <script type="module">
   import { sender } from "./event-delegation.js";
 
+  const maxPosition = window.innerWidth;
+
   function playDnDAnimation(target) {
     const { pipe, send, delegate } = sender();
+
+    // This effect maps position space to transform space 1:1
     const effect = new KeyframeEffect(
       target,
       {
-        transform: ["translateX(0)", "translateX(1000px)"]
+        transform: [`translateX(0)`, `translateX(${maxPosition}px)`]
       },
-      { duration: 1000 }
+      { duration: maxPosition }
     );
 
     // can be 'remain' | 'return' | 'complete'
@@ -54,11 +58,13 @@
       .getPropertyValue("--release-behavior")
       .trim();
 
+    const targetWidth = target.clientWidth;
+
     const dnd_animation = new WorkletAnimation(
       "dnd",
       effect,
       document.timeline,
-      { pipe, releaseBehavior }
+      { pipe, releaseBehavior, maxPosition, targetWidth }
     );
 
     delegate(target, [
@@ -78,11 +84,6 @@
     document
       .querySelectorAll(".target")
       .forEach(target => playDnDAnimation(target));
-
-    // let i = 0;
-    // setInterval(_ => {
-    //   send( {hello: 'world'+ (i++) } )
-    // }, 1000);
   }
 
   if (CSS.animationWorklet) {

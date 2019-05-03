@@ -14,13 +14,17 @@ function sender() {
   const lock_view = new Int32Array(buffer, 0, 4);
   const main_view = new Uint16Array(buffer, 4);
 
-  let pending_message_;
+  let pending_message_ = [];
 
   Lock.initialize(lock_view, 0);
   const lock_ = new Lock(lock_view, 0);
 
   function trySend() {
-    if (!pending_message_) return;
+    if (pending_message_.length == 0) return;
+
+    const str = JSON.stringify(pending_message_);
+    const bytes = str2array(str);
+
     // We cannot wait() on main thread instead tryLock
     if (!lock_.tryLock()) {
       console.log("pending send");
@@ -35,16 +39,14 @@ function sender() {
       return;
     }
 
-    copyMessage(pending_message_, main_view);
+    copyMessage(bytes, main_view);
     //console.log("send");
     lock_.unlock();
-    pending_message_ = null;
+    pending_message_ = [];
   }
 
   function send(object) {
-    const str = JSON.stringify(object);
-    const bytes = str2array(str);
-    pending_message_ = bytes;
+    pending_message_.push(object);
     trySend();
   }
 
