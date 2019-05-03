@@ -1,17 +1,51 @@
 // A simple library that uses Shared-Array-Buffer to forward events to worklet/worker.
 "use strict";
 
+import { Lock } from "./lock.js";
+
 const MAX_MESSAGE_SIZE = 1024;
 
 // returns handle that can be posted to worker/worklet
 function sender() {
-  let buffer = new SharedArrayBuffer((MAX_MESSAGE_SIZE + 1) * 2);
-  let main_view = new Uint16Array(buffer);
+  // first 4 bytes are used for lock
+  // next two bytes are used for the  message length
+  // remaining MAX_MESSAGE_SIZE * 2 bytes are used for message content
+  const buffer = new SharedArrayBuffer(MAX_MESSAGE_SIZE * 2 + 6);
+  const lock_view = new Int32Array(buffer, 0, 4);
+  const main_view = new Uint16Array(buffer, 4);
+
+  let pending_message_;
+
+  Lock.initialize(lock_view, 0);
+  const lock_ = new Lock(lock_view, 0);
+
+  function trySend() {
+    if (!pending_message_) return;
+    // We cannot wait() on main thread instead tryLock
+    if (!lock_.tryLock()) {
+      console.log("pending send");
+      window.requestAnimationFrame(trySend.bind(this));
+      return;
+    }
+
+    // receiver has not read last message, so we wait
+    if (main_view[0] != 0) {
+      lock_.unlock();
+      window.requestAnimationFrame(trySend.bind(this));
+      return;
+    }
+
+    copyMessage(pending_message_, main_view);
+    //console.log("send");
+    lock_.unlock();
+    pending_message_ = null;
+  }
 
   function send(object) {
     const str = JSON.stringify(object);
     const bytes = str2array(str);
-    copyMessage(bytes, main_view);
+    pending_message_ = bytes;
+    trySend();
   }
 
   function sendEvent(event) {
@@ -49,17 +83,24 @@ function sender() {
 
 // Use inside worker/workler and pass in the handler to SAB
 function receiver(pipe) {
-  const worklet_view = new Uint16Array(pipe.buffer_);
+  const lock_view = new Int32Array(pipe.buffer_, 0, 4);
+  const worklet_view = new Uint16Array(pipe.buffer_, 4);
+
+  const lock_ = new Lock(lock_view, 0);
 
   function receive() {
-    // TODO(majidvp): use atomics!
-    const worklet_view = new Uint16Array(pipe.buffer_);
-
+    // Atomic.wait() and lock() are not currently allowed on
+    // worklets so use a tryLock with busy loop.
+    // lock_.lock();
+    while (!lock_.tryLock()) {}
     // first uint16 is length
     const message_length = worklet_view[0];
-    const message_view = new Uint16Array(pipe.buffer_, 2, message_length);
-
-    return array2str(message_view);
+    const message_view = new Uint16Array(pipe.buffer_, 6, message_length);
+    const result = array2str(message_view);
+    // write 0 on first byte to indicate read is complete
+    worklet_view[0] = 0;
+    lock_.unlock();
+    return result;
   }
 
   return receive;
@@ -90,7 +131,9 @@ function copyMessage(source, destination) {
     } bytes`;
 
   destination[0] = source.length;
-  for (let i = 0; i < source.length; i++) destination[i + 1] = source[i];
+  for (let i = 0; i < source.length; i++) {
+    destination[i + 1] = source[i];
+  }
 }
 
 export { sender, receiver };
