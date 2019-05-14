@@ -89,7 +89,7 @@ registerAnimator(
             this.state_.phase = "finishing";
             this.state_.last.position = null;
             this.state_.target.localTime = this.calculateFinalTarget(
-              this.state_.current.localTime
+              this.state_.current.localTime, this.state_.last.intertialDelta
             );
 
             console.log(this.debugString());
@@ -138,16 +138,21 @@ registerAnimator(
       return { events, movement };
     }
 
-    calculateFinalTarget(localTime) {
+    calculateFinalTarget(localTime, intertialDelta) {
       const start = 0;
       // TODO: This really should be effect.getLocalTiming().duration
       const end = this.maxPosition - this.targetWidth;
-      const middle = (end - start) / 2;
+      const threshold = (end - start) / 5;
       switch (this.releaseBehavior) {
         case "remain":
           return localTime;
         case "complete":
-          return localTime < middle ? start : end;
+          if (localTime < threshold)
+            return start;
+          else if (localTime > end - threshold)
+            return end;
+          else
+            return intertialDelta > 0 ? end : start;
         case "return":
           return start;
         default:
